@@ -13,54 +13,64 @@ import java.util.NoSuchElementException;
 
 public final class FileDao implements Dao<String> {
     private final Path directory;
+    private final Object lock = new Object();
     private boolean closed;
 
     public FileDao(Path directory) throws IOException {
         this.directory = directory;
-        this.closed = false;
         Files.createDirectories(directory);
     }
 
     @Override
-    public synchronized String get(String key) throws IOException {
-        ensureOpen();
-        try {
-            return Files.readString(fileFor(key), StandardCharsets.UTF_8);
-        } catch (NoSuchFileException e) {
-            throw new NoSuchElementException("Key is absent", e);
+    public String get(String key) throws IOException {
+        synchronized (lock) {
+            ensureOpen();
+            try {
+                return Files.readString(fileFor(key), StandardCharsets.UTF_8);
+            } catch (NoSuchFileException e) {
+                throw new NoSuchElementException("Key is absent", e);
+            }
         }
     }
 
     @Override
-    public synchronized void upsert(String key, String value) throws IOException {
-        ensureOpen();
-        Path temporary = Files.createTempFile(directory, "value-", ".tmp");
-        try {
-            Files.writeString(temporary, value, StandardCharsets.UTF_8);
-            Files.move(temporary, fileFor(key), StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(temporary);
+    public void upsert(String key, String value) throws IOException {
+        synchronized (lock) {
+            ensureOpen();
+            Path temporary = Files.createTempFile(directory, "value-", ".tmp");
+            try {
+                Files.writeString(temporary, value, StandardCharsets.UTF_8);
+                Files.move(temporary, fileFor(key), StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } finally {
+                Files.deleteIfExists(temporary);
+            }
         }
     }
 
     @Override
-    public synchronized void delete(String key) throws IOException {
-        ensureOpen();
-        Files.deleteIfExists(fileFor(key));
+    public void delete(String key) throws IOException {
+        synchronized (lock) {
+            ensureOpen();
+            Files.deleteIfExists(fileFor(key));
+        }
     }
 
     @Override
-    public synchronized void close() {
-        this.closed = true;
+    public void close() {
+        synchronized (lock) {
+            closed = true;
+        }
     }
 
-    public synchronized boolean isAvailable() {
-        return !this.closed && Files.isDirectory(directory) && Files.isWritable(directory);
+    public boolean isAvailable() {
+        synchronized (lock) {
+            return !closed && Files.isDirectory(directory) && Files.isWritable(directory);
+        }
     }
 
     private void ensureOpen() throws IOException {
-        if (this.closed) {
+        if (closed) {
             throw new IOException("DAO is closed");
         }
     }

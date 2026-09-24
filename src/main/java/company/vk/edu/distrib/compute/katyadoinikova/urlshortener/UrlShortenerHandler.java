@@ -11,6 +11,10 @@ import java.util.NoSuchElementException;
 import java.util.function.BooleanSupplier;
 
 final class UrlShortenerHandler implements HttpHandler {
+    private static final String GET = "GET";
+    private static final String POST = "POST";
+    private static final String PUT = "PUT";
+    private static final String DELETE = "DELETE";
     private static final String CONTENT_TYPE = "text/html; charset=utf-8";
     private static final String LINKS = "/v0/links";
     private static final String USERS = "/internal/users";
@@ -60,7 +64,7 @@ final class UrlShortenerHandler implements HttpHandler {
         if (USERS.equals(path)) {
             return registerUser(exchange, method);
         }
-        if (isRedirectPath(path) && "GET".equals(method)) {
+        if (isRedirectRequest(method, path)) {
             String id = path.substring(1);
             exchange.getResponseHeaders().set("Location", links.get(id));
             return new Response(301, "");
@@ -70,8 +74,8 @@ final class UrlShortenerHandler implements HttpHandler {
             return new Response(401, "");
         }
         if (LINKS.equals(path)) {
-            if (!"POST".equals(method)) {
-                return methodNotAllowed(exchange, "POST");
+            if (!POST.equals(method)) {
+                return methodNotAllowed(exchange, POST);
             }
             String id = links.create(readBody(exchange));
             return new Response(201, "http://localhost:" + port + '/' + id);
@@ -84,15 +88,15 @@ final class UrlShortenerHandler implements HttpHandler {
     }
 
     private Response status(HttpExchange exchange, String method) {
-        if (!"GET".equals(method)) {
-            return methodNotAllowed(exchange, "GET");
+        if (!GET.equals(method)) {
+            return methodNotAllowed(exchange, GET);
         }
         return new Response(available.getAsBoolean() ? 200 : 503, "");
     }
 
     private Response registerUser(HttpExchange exchange, String method) throws IOException {
-        if (!"POST".equals(method)) {
-            return methodNotAllowed(exchange, "POST");
+        if (!POST.equals(method)) {
+            return methodNotAllowed(exchange, POST);
         }
         authentication.register(readBody(exchange));
         return new Response(200, "");
@@ -101,12 +105,12 @@ final class UrlShortenerHandler implements HttpHandler {
     private Response accessLink(HttpExchange exchange, String method, String id)
             throws IOException {
         return switch (method) {
-            case "GET" -> new Response(200, links.get(id));
-            case "PUT" -> {
+            case GET -> new Response(200, links.get(id));
+            case PUT -> {
                 links.update(id, readBody(exchange));
                 yield new Response(200, "");
             }
-            case "DELETE" -> {
+            case DELETE -> {
                 links.delete(id);
                 yield new Response(202, "");
             }
@@ -120,6 +124,10 @@ final class UrlShortenerHandler implements HttpHandler {
 
     private static boolean isRedirectPath(String path) {
         return path.startsWith("/") && path.length() > 1 && path.indexOf('/', 1) < 0;
+    }
+
+    private static boolean isRedirectRequest(String method, String path) {
+        return GET.equals(method) && isRedirectPath(path);
     }
 
     private static Response methodNotAllowed(HttpExchange exchange, String allowed) {

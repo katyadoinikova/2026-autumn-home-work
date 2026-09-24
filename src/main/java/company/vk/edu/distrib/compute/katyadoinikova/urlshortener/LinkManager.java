@@ -70,7 +70,7 @@ final class LinkManager {
             String scheme = uri.getScheme();
             if (!uri.isAbsolute() || uri.getHost() == null
                     || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
-                throw new IllegalArgumentException("Only HTTP(S) URLs are accepted");
+                throw new IllegalArgumentException("Only absolute HTTP(S) URLs are accepted");
             }
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Invalid URL", e);
