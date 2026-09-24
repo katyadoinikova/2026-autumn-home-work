@@ -10,10 +10,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Base64;
 import java.util.NoSuchElementException;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public final class FileDao implements Dao<String> {
     private final Path directory;
-    private final Object lock = new Object();
+    private final Lock lock = new ReentrantLock();
     private boolean closed;
 
     public FileDao(Path directory) throws IOException {
@@ -23,19 +25,23 @@ public final class FileDao implements Dao<String> {
 
     @Override
     public String get(String key) throws IOException {
-        synchronized (lock) {
+        lock.lock();
+        try {
             ensureOpen();
             try {
                 return Files.readString(fileFor(key), StandardCharsets.UTF_8);
             } catch (NoSuchFileException e) {
                 throw new NoSuchElementException("Key is absent", e);
             }
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
     public void upsert(String key, String value) throws IOException {
-        synchronized (lock) {
+        lock.lock();
+        try {
             ensureOpen();
             Path temporary = Files.createTempFile(directory, "value-", ".tmp");
             try {
@@ -45,27 +51,38 @@ public final class FileDao implements Dao<String> {
             } finally {
                 Files.deleteIfExists(temporary);
             }
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
     public void delete(String key) throws IOException {
-        synchronized (lock) {
+        lock.lock();
+        try {
             ensureOpen();
             Files.deleteIfExists(fileFor(key));
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
     public void close() {
-        synchronized (lock) {
+        lock.lock();
+        try {
             closed = true;
+        } finally {
+            lock.unlock();
         }
     }
 
     public boolean isAvailable() {
-        synchronized (lock) {
+        lock.lock();
+        try {
             return !closed && Files.isDirectory(directory) && Files.isWritable(directory);
+        } finally {
+            lock.unlock();
         }
     }
 

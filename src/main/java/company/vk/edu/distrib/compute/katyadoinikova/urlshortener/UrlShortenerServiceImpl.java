@@ -11,13 +11,15 @@ import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public final class UrlShortenerServiceImpl implements UrlShortenerService {
     private static final Path STORAGE_ROOT =
             Path.of(System.getProperty("java.io.tmpdir"), "katyadoinikova-url-shortener");
 
     private final int port;
-    private final Object lifecycleLock = new Object();
+    private final Lock lifecycleLock = new ReentrantLock();
     @Nullable private HttpServer server;
     @Nullable private ExecutorService executor;
     @Nullable private FileDao links;
@@ -31,7 +33,8 @@ public final class UrlShortenerServiceImpl implements UrlShortenerService {
 
     @Override
     public void start() {
-        synchronized (lifecycleLock) {
+        lifecycleLock.lock();
+        try {
             if (started) {
                 throw new IllegalStateException("Service has already been started");
             }
@@ -57,17 +60,22 @@ public final class UrlShortenerServiceImpl implements UrlShortenerService {
                 stopped = true;
                 throw new IllegalStateException("Unable to start service", e);
             }
+        } finally {
+            lifecycleLock.unlock();
         }
     }
 
     @Override
     public void stop() {
-        synchronized (lifecycleLock) {
+        lifecycleLock.lock();
+        try {
             if (!started || stopped) {
                 return;
             }
             stopped = true;
             closeResources();
+        } finally {
+            lifecycleLock.unlock();
         }
     }
 
