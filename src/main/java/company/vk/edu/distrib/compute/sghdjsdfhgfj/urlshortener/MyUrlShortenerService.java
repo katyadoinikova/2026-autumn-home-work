@@ -9,6 +9,8 @@ import company.vk.edu.distrib.compute.urlshortener.UrlShortenerService;
 import java.io.IOException;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Base64;
 
 public class MyUrlShortenerService implements UrlShortenerService {
@@ -19,8 +21,9 @@ public class MyUrlShortenerService implements UrlShortenerService {
     public MyUrlShortenerService(int port) throws IOException {
         InetSocketAddress addr = new InetSocketAddress(port);
         server = HttpServer.create(addr, 0);
-        urls = new PersistentDao("urls.dat");
-        users = new PersistentDao("users.dat");
+        Path tempDir = Files.createTempDirectory("sghdjsdfhgfj");
+        urls = new PersistentDao(tempDir.resolve("urls.dat"));
+        users = new PersistentDao(tempDir.resolve("users.dat"));
 
         addContext("/v0/status", new StatusHandler());
         addContext("/v0/links", new LinksHandler(this));

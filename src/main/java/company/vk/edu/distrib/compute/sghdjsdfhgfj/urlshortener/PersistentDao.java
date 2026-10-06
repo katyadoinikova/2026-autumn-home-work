@@ -3,6 +3,7 @@ package company.vk.edu.distrib.compute.sghdjsdfhgfj.urlshortener;
 import company.vk.edu.distrib.compute.Dao;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -13,8 +14,8 @@ public class PersistentDao implements Dao<String> {
     private final String filename;
     private final ReentrantLock lock;
 
-    PersistentDao(String filename) throws IOException {
-        this.filename = filename;
+    PersistentDao(Path path) throws IOException {
+        this.filename = path.toString();
         data = new HashMap<>();
         lock = new ReentrantLock();
         read();
