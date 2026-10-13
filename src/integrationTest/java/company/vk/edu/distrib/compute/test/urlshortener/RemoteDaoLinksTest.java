@@ -55,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
  */
 @ParameterizedClass(allowZeroInvocations = true)
 @MethodSource("serviceDaoPairs")
-@EnabledIfEnvironmentVariable(named = "CURRENT_DATE", matches = "2026-(09-28|09-29|09-30|10-01|10-02|10-03|10-04|10-05|10-06)")
+@EnabledIfEnvironmentVariable(named = "CURRENT_DATE", matches = "2026-10-\\d\\d")
 class RemoteDaoLinksTest {
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     public static final int PACKAGE_PREFIX_LEN = "company.vk.edu.distrib.compute.".length();
