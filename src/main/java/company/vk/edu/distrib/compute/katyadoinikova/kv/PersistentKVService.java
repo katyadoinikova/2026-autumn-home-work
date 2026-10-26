@@ -23,6 +23,7 @@ public final class PersistentKVService implements KVService {
     @Nullable private HttpServer endpoint;
     @Nullable private ExecutorService requestWorkers;
     @Nullable private ByteArrayFileDao entityStore;
+    @Nullable private ReplicaCoordinator replicaCoordinator;
     private ServiceState state = ServiceState.CREATED;
 
     public PersistentKVService(int listenPort) {
@@ -68,6 +69,8 @@ public final class PersistentKVService implements KVService {
                 SERVICE_DATA_PATH.resolve(Integer.toString(listenPort))
         );
         entityStore = storage;
+        ReplicaCoordinator coordinator = new ReplicaCoordinator(listenPort, storage);
+        replicaCoordinator = coordinator;
 
         HttpServer httpEndpoint = HttpServer.create(new InetSocketAddress("localhost", listenPort), 0);
         endpoint = httpEndpoint;
@@ -76,7 +79,7 @@ public final class PersistentKVService implements KVService {
         requestWorkers = workers;
         httpEndpoint.setExecutor(workers);
 
-        httpEndpoint.createContext("/", new KVHttpHandler(storage, storage));
+        httpEndpoint.createContext("/", new KVHttpHandler(storage, coordinator));
         httpEndpoint.start();
     }
 
@@ -88,6 +91,10 @@ public final class PersistentKVService implements KVService {
         ExecutorService currentWorkers = requestWorkers;
         if (currentWorkers != null) {
             currentWorkers.close();
+        }
+        ReplicaCoordinator currentCoordinator = replicaCoordinator;
+        if (currentCoordinator != null) {
+            currentCoordinator.close();
         }
         ByteArrayFileDao currentStore = entityStore;
         if (currentStore != null) {
