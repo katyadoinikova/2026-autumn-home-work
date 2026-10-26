@@ -14,6 +14,8 @@ final class KVHttpHandler implements HttpHandler {
     private static final String STATUS_PATH = "/v0/status";
     private static final String ENTITY_PATH = "/v0/entity";
     private static final String REPLICA_PATH = "/internal/replica";
+    private static final String ID_PARAMETER = "id";
+    private static final String ACK_PARAMETER = "ack";
 
     private final ByteArrayFileDao storage;
     private final ReplicaCoordinator coordinator;
@@ -70,18 +72,27 @@ final class KVHttpHandler implements HttpHandler {
             }
             String name = parameter.substring(0, separator);
             String value = URLDecoder.decode(parameter.substring(separator + 1), StandardCharsets.UTF_8);
-            if ("id".equals(name) && id == null) {
-                id = value;
-            } else if ("ack".equals(name) && ack == null) {
-                ack = value;
-            } else {
-                throw new IllegalArgumentException("Unknown or repeated query parameter");
+            switch (name) {
+                case ID_PARAMETER -> id = uniqueValue(id, value);
+                case ACK_PARAMETER -> ack = uniqueValue(ack, value);
+                default -> throw new IllegalArgumentException("Unknown query parameter");
             }
         }
+        return new EntityQuery(requireId(id), ack);
+    }
+
+    private static String uniqueValue(@Nullable String current, String value) {
+        if (current != null) {
+            throw new IllegalArgumentException("Repeated query parameter");
+        }
+        return value;
+    }
+
+    private static String requireId(@Nullable String id) {
         if (id == null || id.isEmpty()) {
             throw new IllegalArgumentException("ID must not be empty");
         }
-        return new EntityQuery(id, ack);
+        return id;
     }
 
     private record EntityQuery(String key, @Nullable String ack) {

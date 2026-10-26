@@ -70,8 +70,7 @@ final class ReplicaCoordinator {
         int confirmed = 0;
         boolean found = false;
         byte[] foundValue = new byte[0];
-        int remaining = owners.length;
-        while (remaining-- > 0) {
+        for (int remaining = owners.length; remaining > 0; remaining--) {
             Response reply;
             try {
                 reply = completed.poll(QUORUM_WAIT_MILLIS, TimeUnit.MILLISECONDS);
@@ -175,6 +174,12 @@ final class ReplicaCoordinator {
         if (description == null || description.isBlank()) {
             return new ClusterConfig(new int[]{localPort}, 1, false);
         }
+        Set<Integer> ports = parsePorts(description);
+        int factor = replicationFactor(ports.size());
+        return new ClusterConfig(ports.stream().mapToInt(Integer::intValue).toArray(), factor, true);
+    }
+
+    private static Set<Integer> parsePorts(String description) {
         Set<Integer> ports = new TreeSet<>();
         for (String part : description.split(",")) {
             int port = Integer.parseInt(part.trim());
@@ -182,15 +187,19 @@ final class ReplicaCoordinator {
                 throw new IllegalArgumentException("Invalid cluster port");
             }
         }
-        int factor = ports.size();
+        return ports;
+    }
+
+    private static int replicationFactor(int nodeCount) {
         @Nullable String configuredFactor = System.getProperty(FACTOR_PROPERTY);
-        if (configuredFactor != null) {
-            factor = Integer.parseInt(configuredFactor);
-            if (factor < 1 || factor > ports.size()) {
-                throw new IllegalArgumentException("Invalid replication factor");
-            }
+        if (configuredFactor == null) {
+            return nodeCount;
         }
-        return new ClusterConfig(ports.stream().mapToInt(Integer::intValue).toArray(), factor, true);
+        int factor = Integer.parseInt(configuredFactor);
+        if (factor < 1 || factor > nodeCount) {
+            throw new IllegalArgumentException("Invalid replication factor");
+        }
+        return factor;
     }
 
     private static int parseAck(@Nullable String text, int factor) {
